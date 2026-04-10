@@ -52,7 +52,7 @@ jobs:
       - name: Pull Qwen model
         run: |
           ollama pull qwen2.5:1.5b  # Smaller model for CI
-        timeout: 600000
+        timeout-minutes: 10
 
       - name: Verify Ollama is ready
         run: |
