@@ -16,6 +16,7 @@ on:
 env:
   OLLAMA_BASE_URL: http://localhost:11434
   OLLAMA_MODEL: qwen2.5:1.5b
+  MAX_ARTICLES: '10'
   PYTHON_VERSION: '3.11'
 
 jobs:

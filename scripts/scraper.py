@@ -16,7 +16,6 @@ from pathlib import Path
 import requests
 from bs4 import BeautifulSoup
 import feedparser
-from ollama import chat
 
 # Setup logging
 logging.basicConfig(
@@ -53,16 +52,16 @@ class NigerianNewsScraper:
         self.output_dir = Path(__file__).parent.parent / '_data'
         self.output_dir.mkdir(exist_ok=True)
         
-    def fetch_with_retry(self, url: str, retries: int = 3) -> Optional[requests.Response]:
+    def fetch_with_retry(self, url: str, retries: int = 2) -> Optional[requests.Response]:
         """Fetch URL with retry logic"""
         for attempt in range(retries):
             try:
-                response = requests.get(url, headers=self.headers, timeout=30)
+                response = requests.get(url, headers=self.headers, timeout=15)
                 response.raise_for_status()
                 return response
             except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
-                time.sleep(2 ** attempt)
+                time.sleep(1)
         return None
     
     def scrape_news_sites(self) -> List[ScrapedArticle]:
@@ -89,9 +88,14 @@ class NigerianNewsScraper:
                 'type': 'rss'
             },
             {
-                'name': 'Premium Times',
-                'url': 'https://www.premiumtimesng.com/news',
-                'type': 'web'
+                'name': 'Channels Television',
+                'url': 'https://www.channelstv.com/feed/',
+                'type': 'rss'
+            },
+            {
+                'name': 'Sahara Reporters',
+                'url': 'https://saharareporters.com/taxonomy/term/39/feed',
+                'type': 'rss'
             },
         ]
         
@@ -100,9 +104,7 @@ class NigerianNewsScraper:
             try:
                 if source['type'] == 'rss':
                     articles.extend(self._scrape_rss(source))
-                elif source['type'] == 'web':
-                    articles.extend(self._scrape_website(source))
-                time.sleep(1)  # Be polite
+                time.sleep(0.5)  # Be polite
             except Exception as e:
                 logger.error(f"Error scraping {source['name']}: {e}")
         
@@ -113,7 +115,7 @@ class NigerianNewsScraper:
         articles = []
         try:
             feed = feedparser.parse(source['url'])
-            for entry in feed.entries[:20]:  # Limit to 20 per source
+            for entry in feed.entries[:15]:  # Limit to 15 per source
                 article = ScrapedArticle(
                     title=entry.get('title', ''),
                     url=entry.get('link', ''),
@@ -128,99 +130,88 @@ class NigerianNewsScraper:
         
         return articles
     
-    def _scrape_website(self, source: Dict) -> List[ScrapedArticle]:
-        """Scrape from website"""
-        articles = []
-        response = self.fetch_with_retry(source['url'])
-        if not response:
-            return articles
-        
-        soup = BeautifulSoup(response.content, 'lxml')
-        
-        # Extract article links
-        for link in soup.find_all('a', href=True):
-            href = link['href']
-            if any(keyword in href.lower() for keyword in ['/news/', '/article/', '/story/']):
-                title = link.get_text(strip=True)
-                if title and len(title) > 20:
-                    full_url = href if href.startswith('http') else f"https://www.premiumtimesng.com{href}"
-                    article = ScrapedArticle(
-                        title=title,
-                        url=full_url,
-                        date=datetime.now().isoformat(),
-                        source=source['name'],
-                        content='',
-                        summary=''
-                    )
-                    articles.append(article)
-        
-        return articles[:10]  # Limit articles
-    
     def scrape_historical_problems(self, year_range: str = 'all') -> List[ScrapedArticle]:
-        """Search for historical Nigerian problems by year"""
+        """Search for historical Nigerian problems"""
         articles = []
         
-        # Define search queries for different types of problems
-        problem_categories = [
-            "corruption scandal",
-            "military coup",
-            "economic crisis",
-            "fuel scarcity",
-            "unemployment",
-            "infrastructure collapse",
-            "security crisis",
-            "healthcare crisis",
-            "education strike",
-            "ethnic conflict",
-            "oil spill",
-            "flooding disaster",
-            "power crisis",
-            "poverty",
-            "human rights"
+        # Wikipedia pages that actually exist for Nigeria
+        wiki_pages = [
+            ('History of Nigeria', 'History_of_Nigeria'),
+            ('Nigerian Civil War', 'Nigerian_Civil_War'),
+            ('1966 Nigerian coup', '1966_Nigerian_coup_d%27%C3%A9tat'),
+            ('1983 Nigerian coup', '1983_Nigerian_coup_d%27%C3%A9tat'),
+            ('1993 Nigerian election', 'Nigerian_general_elections,_1993'),
+            ('Abacha regime', 'Sani_Abacha'),
+            ('Boko Haram insurgency', 'Boko_Haram_insurgency'),
+            ('EndSARS protests', 'EndSARS'),
+            ('Niger Delta conflict', 'Niger_Delta_conflict'),
+            ('Fuel subsidy protests', '2012_Nigeria_fuel_subsidy_protests'),
+            ('Chibok schoolgirls kidnapping', 'Chibok_schoolgirls_kidnapping'),
+            ('Nigerian Civil War - Biafra', 'Republic_of_Biafra'),
+            ('2020 EndSARS', '2020_EndSARS_protests'),
+            ('Nigeria economic crisis', 'Economy_of_Nigeria'),
+            ('Oil pollution in Niger Delta', 'Oil_pollution_in_the_Niger_Delta'),
         ]
         
-        if year_range == 'all':
-            years = list(range(1960, 2025))
-        else:
+        # Year-specific major events
+        year_events = {
+            '1960': [('Independence', 'Independence_Day_(Nigeria)')],
+            '1963': [('Republic declared', 'First_Nigerian_Republic')],
+            '1966': [('Military coups', '1966_Nigerian_coup_d%27%C3%A9tat'), ('Counter-coup', '1966_Nigerian_counter-coup')],
+            '1967': [('Biafra declared', 'Republic_of_Biafra')],
+            '1970': [('Civil War ends', 'Nigerian_Civil_War')],
+            '1975': [('Coup against Gowon', '1975_Nigerian_coup_d%27%C3%A9tat')],
+            '1979': [('Return to democracy', 'Second_Nigerian_Republic')],
+            '1983': [('Coup against Shagari', '1983_Nigerian_coup_d%27%C3%A9tat')],
+            '1993': [('June 12 annulment', 'Nigerian_general_elections,_1993')],
+            '1999': [('Fourth Republic', 'Fourth_Nigerian_Republic')],
+            '2009': [('Boko Haram begins', 'Boko_Haram_insurgency')],
+            '2014': [('Chibok kidnapping', 'Chibok_schoolgirls_kidnapping')],
+            '2015': [('APC victory', '2015_Nigerian_general_election')],
+            '2020': [('EndSARS protests', '2020_EndSARS_protests')],
+            '2023': [('General elections', '2023_Nigerian_general_election')],
+        }
+        
+        # Scrape Wikipedia articles
+        all_pages = wiki_pages.copy()
+        
+        # Add year-specific events
+        for year, events in year_events.items():
+            all_pages.extend([(f"{year}: {e[0]}", e[1]) for e in events])
+        
+        for title, wiki_slug in all_pages:
             try:
-                start, end = map(int, year_range.split('-'))
-                years = list(range(start, min(end + 1, 2025)))
-            except:
-                years = list(range(1960, 2025))
-        
-        # Sample years to avoid too many requests
-        sample_years = years[::max(1, len(years) // 20)]  # Sample ~20 years
-        
-        for category in problem_categories[:5]:  # Limit categories for now
-            for year in sample_years[:10]:  # Limit years per run
-                try:
-                    # Use Wikipedia and other archive sources
-                    search_url = f"https://en.wikipedia.org/wiki/{year}_in_Nigeria"
-                    response = self.fetch_with_retry(search_url)
-                    if response:
-                        soup = BeautifulSoup(response.content, 'lxml')
-                        content = soup.get_text()[:2000]  # Limit content
+                url = f"https://en.wikipedia.org/wiki/{wiki_slug}"
+                response = self.fetch_with_retry(url)
+                if response:
+                    soup = BeautifulSoup(response.content, 'lxml')
+                    
+                    # Get main content
+                    content_div = soup.find('div', {'id': 'mw-content-text'})
+                    if content_div:
+                        paragraphs = content_div.find_all('p', limit=10)
+                        content = '\n'.join([p.get_text() for p in paragraphs if p.get_text().strip()])
                         
-                        article = ScrapedArticle(
-                            title=f"Nigeria {category.capitalize()} - {year}",
-                            url=search_url,
-                            date=f"{year}-01-01",
-                            source="Wikipedia Archive",
-                            content=content,
-                            summary='',
-                            categories=[category.replace(' ', '_')],
-                            tags=[str(year), category, 'nigeria']
-                        )
-                        articles.append(article)
+                        if len(content) > 200:  # Only keep substantial articles
+                            article = ScrapedArticle(
+                                title=f"Nigeria: {title}",
+                                url=url,
+                                date=datetime.now().isoformat(),
+                                source="Wikipedia",
+                                content=content[:3000],
+                                summary='',
+                                categories=['historical'],
+                                tags=['nigeria', title.lower().replace(' ', '_')]
+                            )
+                            articles.append(article)
                 
-                except Exception as e:
-                    logger.error(f"Error scraping historical data for {year}: {e}")
-                
-                time.sleep(0.5)
+                time.sleep(0.3)
+            except Exception as e:
+                logger.error(f"Error scraping {title}: {e}")
         
         return articles
     
-    def scrape_specific_problem_sites(self) -> List[ScrapedArticle]:
+    def scrape_problem_documentation_sites(self) -> List[ScrapedArticle]:
         """Scrape from sites that document Nigerian problems"""
         articles = []
         
@@ -236,7 +227,7 @@ class NigerianNewsScraper:
                 'categories': ['human_rights', 'conflict']
             },
             {
-                'name': 'World Bank Nigeria',
+                'name': 'World Bank Nigeria Overview',
                 'url': 'https://www.worldbank.org/en/country/nigeria/overview',
                 'categories': ['economy', 'development']
             },
@@ -263,18 +254,40 @@ class NigerianNewsScraper:
                         url=source['url'],
                         date=datetime.now().isoformat(),
                         source=source['name'],
-                        content=content[:5000],  # Limit content
+                        content=content[:5000],
                         summary='',
                         categories=source['categories'],
                         tags=['nigeria', 'report'] + source['categories']
                     )
                     articles.append(article)
                 
-                time.sleep(1)
+                time.sleep(0.5)
             except Exception as e:
                 logger.error(f"Error scraping {source['name']}: {e}")
         
         return articles
+    
+    def filter_problem_articles(self, articles: List[ScrapedArticle]) -> List[ScrapedArticle]:
+        """Filter articles that are about problems/issues"""
+        problem_keywords = [
+            'crisis', 'problem', 'conflict', 'protest', 'scandal', 'corruption',
+            'violence', 'attack', 'kill', 'death', 'unemployment', 'poverty',
+            'infrastructure', 'power', 'electricity', 'fuel', 'subsidy',
+            'strike', 'healthcare', 'education', 'insecurity', 'bandit',
+            'kidnap', 'terrorism', 'boko haram', 'herdsmen', 'flooding',
+            'erosion', 'pollution', 'oil spill', 'economic', 'recession',
+            'inflation', 'currency', 'naira', 'debt', 'budget',
+            'military', 'coup', 'civil war', 'biafra', 'end', 'sars',
+            'police', 'brutality', 'human rights', 'abuse'
+        ]
+        
+        filtered = []
+        for article in articles:
+            text = f"{article.title} {article.content}".lower()
+            if any(keyword in text for keyword in problem_keywords):
+                filtered.append(article)
+        
+        return filtered
     
     def save_articles(self, articles: List[ScrapedArticle]):
         """Save articles to JSON file"""
@@ -297,7 +310,7 @@ class NigerianNewsScraper:
         seen_urls = set()
         unique_articles = []
         for article in all_articles:
-            if article.get('url') not in seen_urls:
+            if article.get('url') not in seen_urls and article.get('url'):
                 seen_urls.add(article['url'])
                 unique_articles.append(article)
         
@@ -316,18 +329,22 @@ class NigerianNewsScraper:
         news_articles = self.scrape_news_sites()
         logger.info(f"Found {len(news_articles)} news articles")
         
+        # Filter for problem-related news
+        problem_news = self.filter_problem_articles(news_articles)
+        logger.info(f"Filtered to {len(problem_news)} problem-related articles")
+        
         # Scrape historical problems
-        logger.info(f"Scraping historical problems ({year_range})...")
+        logger.info(f"Scraping historical problems...")
         historical_articles = self.scrape_historical_problems(year_range)
         logger.info(f"Found {len(historical_articles)} historical articles")
         
         # Scrape problem documentation sites
         logger.info("Scraping problem documentation sites...")
-        problem_articles = self.scrape_specific_problem_sites()
+        problem_articles = self.scrape_problem_documentation_sites()
         logger.info(f"Found {len(problem_articles)} problem articles")
         
         # Combine all articles
-        all_articles = news_articles + historical_articles + problem_articles
+        all_articles = problem_news + historical_articles + problem_articles
         
         # Save to file
         self.save_articles(all_articles)

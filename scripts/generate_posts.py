@@ -27,7 +27,7 @@ class PostGenerator:
         self.data_dir = Path(__file__).parent.parent / '_data'
         self.problems_dir = Path(__file__).parent.parent / '_problems'
         self.problems_dir.mkdir(exist_ok=True)
-        self.model = os.environ.get('OLLAMA_MODEL', 'qwen2.5:latest')
+        self.model = os.environ.get('OLLAMA_MODEL', 'qwen3:latest')
         
     def load_articles(self) -> List[Dict]:
         """Load scraped articles"""
@@ -201,6 +201,10 @@ ai_generated: true
         if not articles:
             logger.warning("No articles to process")
             return
+        
+        # Limit articles for CI
+        max_articles = int(os.environ.get('MAX_ARTICLES', '999'))
+        articles = articles[:max_articles]
         
         logger.info(f"Processing {len(articles)} articles...")
         
