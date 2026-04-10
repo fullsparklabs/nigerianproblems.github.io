@@ -1,0 +1,69 @@
+# Welcome to Jekyll!
+#
+# This config file is meant for settings that affect your whole blog, values
+# which you are expected to set up once and rarely edit after that.
+
+title: Nigerian Problems Archive
+description: >-
+  A comprehensive archive documenting problems Nigeria has faced from independence to present day.
+  Automated news scraping and AI-powered analysis.
+url: "https://nigerianproblems.github.io"
+baseurl: ""
+github_username: nigerianproblems
+
+# Build settings
+remote_theme: pages-themes/minimal@v0.2.0
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-paginate-v2
+  - jekyll-sitemap
+  - jemoji
+
+# Pagination settings
+pagination:
+  enabled: true
+  per_page: 12
+  sort_field: 'date'
+  sort_reverse: true
+  trail:
+    before: 2
+    after: 2
+
+# Collections
+collections:
+  problems:
+    output: true
+    permalink: /problems/:year/:month/:day/:title/
+
+# Default front matter
+defaults:
+  - scope:
+      path: ""
+      type: "problems"
+    values:
+      layout: "problem"
+
+# Exclude from processing
+exclude:
+  - scripts/
+  - .github/
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - README.md
+  - LICENSE
+
+# Categories
+category_archive:
+  type: liquid
+  path: /categories/
+
+# Tags
+tag_archive:
+  type: liquid
+  path: /tags/

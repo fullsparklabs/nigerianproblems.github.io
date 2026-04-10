@@ -1,0 +1,54 @@
+---
+layout: default
+---
+
+<article class="problem-post">
+  <header class="post-header">
+    <h1>{{ page.title }}</h1>
+    <div class="post-meta">
+      <time datetime="{{ page.date | date_to_xmlschema }}">
+        {{ page.date | date: "%B %d, %Y" }}
+      </time>
+      {% if page.categories %}
+        <span class="post-categories">
+          {% for category in page.categories %}
+            <a href="{{ site.baseurl }}/categories/#{{ category }}">{{ category }}</a>{% unless forloop.last %}, {% endunless %}
+          {% endfor %}
+        </span>
+      {% endif %}
+    </div>
+  </header>
+
+  <div class="post-content">
+    {{ content }}
+  </div>
+
+  {% if page.sources %}
+    <div class="post-sources">
+      <h3>Sources</h3>
+      <ul>
+        {% for source in page.sources %}
+          <li><a href="{{ source }}" target="_blank">{{ source }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  {% if page.tags %}
+    <div class="post-tags">
+      <strong>Tags:</strong>
+      {% for tag in page.tags %}
+        <a href="{{ site.baseurl }}/tags/#{{ tag }}">{{ tag }}</a>{% unless forloop.last %}, {% endunless %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</article>
+
+<nav class="post-navigation">
+  {% if page.previous %}
+    <a href="{{ page.previous.url | relative_url }}" class="prev">← Previous Problem</a>
+  {% endif %}
+  {% if page.next %}
+    <a href="{{ page.next.url | relative_url }}" class="next">Next Problem →</a>
+  {% endif %}
+</nav>
