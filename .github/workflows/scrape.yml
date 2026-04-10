@@ -15,7 +15,7 @@ on:
 
 env:
   OLLAMA_BASE_URL: http://localhost:11434
-  OLLAMA_MODEL: qwen2.5:latest
+  OLLAMA_MODEL: qwen2.5:1.5b
   PYTHON_VERSION: '3.11'
 
 jobs:
@@ -39,17 +39,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r scripts/requirements.txt
 
-      - name: Set up Ollama
-        uses: ollama/ollama-action@v3
-        with:
-          # Use CPU-enabled model
-          run-model: qwen2.5:latest
-
-      - name: Wait for Ollama to be ready
+      - name: Install Ollama
         run: |
-          echo "Waiting for Ollama to start..."
-          sleep 30
-          curl -f http://localhost:11434/api/tags || echo "Ollama starting..."
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama service
+        run: |
+          ollama serve &
+          sleep 10
+          echo "Ollama started"
+
+      - name: Pull Qwen model
+        run: |
+          ollama pull qwen2.5:1.5b  # Smaller model for CI
+        timeout: 600000
+
+      - name: Verify Ollama is ready
+        run: |
+          curl -f http://localhost:11434/api/tags
 
       - name: Run web scraper
         env:
