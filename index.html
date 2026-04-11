@@ -1,5 +1,5 @@
 ---
-layout: home
+layout: default
 title: Nigerian Problems Archive
 ---
 
@@ -12,7 +12,8 @@ title: Nigerian Problems Archive
 {{ content }}
 
 <div class="problems-grid">
-  {% for post in paginator.posts %}
+  {% assign sorted_problems = site.problems | sort: 'date' | reverse %}
+  {% for post in sorted_problems %}
     <article class="problem-card">
       <h2><a href="{{ post.url | relative_url }}">{{ post.title }}</a></h2>
       <div class="meta">
@@ -31,19 +32,3 @@ title: Nigerian Problems Archive
     </article>
   {% endfor %}
 </div>
-
-{% if paginator.total_pages > 1 %}
-  <div class="pagination">
-    {% if paginator.previous_page %}
-      <a href="{{ paginator.previous_page_path | relative_url }}" class="prev">← Newer</a>
-    {% endif %}
-    
-    <span class="page_number">
-      Page {{ paginator.page }} of {{ paginator.total_pages }}
-    </span>
-    
-    {% if paginator.next_page %}
-      <a href="{{ paginator.next_page_path | relative_url }}" class="next">Older →</a>
-    {% endif %}
-  </div>
-{% endif %}

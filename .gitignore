@@ -3,8 +3,7 @@ Gemfile.lock
 node_modules/
 vendor/
 
-# Generated files
-_problems/
+# Generated data (keep _problems)
 _data/scraped_articles.json
 
 # Jekyll
